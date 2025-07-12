@@ -2,7 +2,7 @@ import sys
 import os
 import json
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QTableWidgetItem, QTableWidget
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QTableWidgetItem, QTableWidget, QDialog
 )
 from PyQt5.QtGui import QFont
 from datetime import datetime
@@ -126,11 +126,47 @@ class SangtongWallet(QWidget):
         self.outcome_button = QPushButton("Outcome Update")
         self.outcome_button.setStyleSheet(green_btn_style)
         self.outcome_button.clicked.connect(self.update_outcome)
+
+        self.clear_button = QPushButton("Clear All")
+        self.clear_button.setStyleSheet(green_btn_style)
+        self.clear_button.clicked.connect(self.clear)
+
+        blue_btn_style = """
+            QPushButton {
+                background-color: #C3EEFA;
+                color: #000000;
+                border-radius 8px;
+                padding: 8px 18px;
+                font-weight: bold;
+            }
+        """
+
+        self.fake_color_button = QPushButton("สีแอพ")
+        self.fake_color_button.setStyleSheet(blue_btn_style)
+        self.fake_color_button.clicked.connect(self.fake)
         
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.update_button)
         button_layout.addWidget(self.outcome_button)
         left_layout.addLayout(button_layout)
+
+        left_layout.addWidget(self.fake_color_button)
+
+        right_layout.addWidget(self.clear_button)
+
+        search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("ค้าหาจากวันที่, เดือน, หรือปี")
+        self.search_input.setStyleSheet("background-color: #7EC636; color: #FFFFFF; border: 1px solid #44aa44; padding: 5px;")
+        
+        search_button = QPushButton("➤")
+        search_button.setStyleSheet(green_btn_style)
+        search_button.clicked.connect(self.search)
+
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(search_button)
+
+        right_layout.addLayout(search_layout)
 
         self.load_data()
         for entry in self.data:
@@ -146,7 +182,7 @@ class SangtongWallet(QWidget):
 
         self.right_table = QTableWidget()
         self.right_table.setColumnCount(3)
-        self.right_table.setFixedSize(452, 350)
+        self.right_table.setFixedSize(452, 380)
         self.right_table.setHorizontalHeaderLabels(["Income/Outcome", "Date", "Reason"])
         self.right_table.setColumnWidth(0, 120)
         self.right_table.setColumnWidth(1, 80)
@@ -193,6 +229,33 @@ class SangtongWallet(QWidget):
         except FileNotFoundError:
             self.wallet_info = []
     
+    def clear(self):
+        reply = QMessageBox.question(
+            self,
+            "ยืนยันการลบ",
+            "แน่ใจแล้วนะว่าจะลบประวัติ",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.right_table.setRowCount(0)
+            self.table.setRowCount(0)
+
+            self.wallet_info = []
+            self.save_walletdata()
+
+            self.data = [{
+                "month": 1,
+                "income": 0,
+                "outcome": 0,
+                "passive": 0,
+                "total": 0,
+            }]
+            self.save_data()
+            self.add_row_to_table(1, 0, 0, 0, 0)
+
+            QMessageBox.information(self, "สำเร็จ", "ลบประวัติแล้ว")
+
     def get_last_total(self):
         if not self.data:
             try:
@@ -341,6 +404,63 @@ class SangtongWallet(QWidget):
     def save_walletdata(self):
         with open("walletInfo.json", "w", encoding="utf-8") as f:
             json.dump(self.wallet_info, f, indent=2, ensure_ascii=False)
+    
+    def search(self):
+        keyword = self.search_input.text().strip().lower()
+        self.right_table.setRowCount(0)
+
+        if not self.wallet_info:
+            self.load_walletdata()
+
+        for entry in self.wallet_info:
+            if (
+                keyword in entry["date"].lower()
+                or keyword in entry["reason"].lower()
+                or keyword in entry["type"].lower()
+                or keyword in str(entry["amount"])
+            ):
+                new_row = self.right_table.rowCount()
+                self.right_table.insertRow(new_row)
+
+                symbol = "+" if entry["type"] == "income" else "-"
+                self.right_table.setItem(new_row, 0, QTableWidgetItem(f"{symbol}{entry['amount']}"))
+                self.right_table.setItem(new_row, 1, QTableWidgetItem(entry["date"]))
+                self.right_table.setItem(new_row, 2, QTableWidgetItem(entry["reason"]))
+
+    def fake(self):
+        reply = QMessageBox.question(
+            self,
+            "บ้าป่าว",
+            "คือคนทำชอบสีเขียวไง ไม่ให้เปลี่ยนเข้าใจป่าว",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.No:
+            dialog = MemeDialog()
+            dialog.exec_()
+
+class MemeDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("ไม่เข้าใจอ๋อ")
+        self.setFixedSize(250, 100)
+        self.setStyleSheet("background-color: #121916; color: #DCDCDC")
+
+        layout = QVBoxLayout()
+        label = QLabel("เคเลย")
+        label.setStyleSheet("color: #FFFFFF;")
+        layout.addWidget(label)
+
+        close_btn = QPushButton("โอเค")
+        close_btn.setStyleSheet("background-color: #44aa44; color: #DCDCDC")
+        close_btn.clicked.connect(self.exit_app)
+
+        layout.addWidget(close_btn)
+        self.setLayout(layout)
+
+    def exit_app(self):
+        QApplication.instance().quit()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
