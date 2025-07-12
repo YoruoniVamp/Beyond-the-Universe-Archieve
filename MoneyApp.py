@@ -125,7 +125,7 @@ class SangtongWallet(QWidget):
 
         self.outcome_button = QPushButton("Outcome Update")
         self.outcome_button.setStyleSheet(green_btn_style)
-        self.update_button.clicked.connect(self.update_outcome)
+        self.outcome_button.clicked.connect(self.update_outcome)
         
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.update_button)
